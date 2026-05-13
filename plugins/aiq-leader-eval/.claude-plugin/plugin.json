@@ -1,6 +1,6 @@
 {
     "name": "aiq-leader-eval",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "AI-Q 리더 평가 가이드 HTML 부서별 생성",
     "author": { "name": "잭 (NGA)", "email": "jack@nextgenai.kr" },
     "license": "Internal"
