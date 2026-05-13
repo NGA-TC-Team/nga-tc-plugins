@@ -1,0 +1,7 @@
+{
+    "name": "data-dashboard",
+    "version": "1.0.0",
+    "description": "CSV/XLSX → 인터랙티브 HTML 대시보드 자동 생성",
+    "author": { "name": "잭 (NGA)", "email": "jack@nextgenai.kr" },
+    "license": "Internal"
+}

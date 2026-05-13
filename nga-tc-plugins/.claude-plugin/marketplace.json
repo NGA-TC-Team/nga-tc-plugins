@@ -1,0 +1,73 @@
+{
+    "name": "nga-tc-plugins",
+    "owner": {
+        "name": "NGA-TC-Team",
+        "email": "jack@nextgenai.kr"
+    },
+    "metadata": {
+        "description": "NGA-TC-Team의 Claude Code 플러그인 마켓플레이스. NGA 컨설팅 현장에서 사용하는 표준 스킬·커맨드 모음.",
+        "version": "1.0.0"
+    },
+    "plugins": [
+        {
+            "name": "nga-proofread",
+            "source": "./plugins/nga-proofread",
+            "description": "NGA 컨설팅 톤(간결·MECE·면책 없음·실무 중심)으로 한국어 텍스트를 교정·다듬기.",
+            "version": "0.1.0",
+            "category": "writing",
+            "keywords": ["proofread", "korean", "tone", "교정", "다듬기"],
+            "author": {
+                "name": "잭 (NGA)",
+                "email": "jack@nextgenai.kr"
+            }
+        },
+        {
+            "name": "aiq-leader-eval",
+            "source": "./plugins/aiq-leader-eval",
+            "description": "AI-Q 리더 평가 가이드 HTML 자동 생성. NGA 자가진단 설문(CSV/TSV/Excel)을 4축×15 sub-item 신호 매트릭스 + KPI 대시보드 + 멤버별 점수 입력 HTML로 변환.",
+            "version": "1.0.0",
+            "category": "evaluation",
+            "keywords": ["AI-Q", "evaluation", "leader", "평가", "AX", "진단"],
+            "author": {
+                "name": "잭 (NGA)",
+                "email": "jack@nextgenai.kr"
+            }
+        },
+        {
+            "name": "data-dashboard",
+            "source": "./plugins/data-dashboard",
+            "description": "CSV/XLSX 파일을 인터랙티브 HTML 대시보드(KPI 카드 + Chart.js + 필터·검색 테이블)로 자동 변환. 설문·매출·HR·운영 데이터 시각화에 사용.",
+            "version": "1.0.0",
+            "category": "data",
+            "keywords": ["dashboard", "csv", "xlsx", "visualization", "대시보드", "시각화"],
+            "author": {
+                "name": "잭 (NGA)",
+                "email": "jack@nextgenai.kr"
+            }
+        },
+        {
+            "name": "stq-analysis",
+            "source": "./plugins/stq-analysis",
+            "description": "업무 리스트를 SQT 5-Layer 방법론(Scale/Quality/Time)으로 자동 분류·판정·스코어링. AI 전환·자동화 가능성 분석에 사용.",
+            "version": "1.0.0",
+            "category": "consulting",
+            "keywords": ["SQT", "5-Layer", "automation", "업무분류", "자동화", "AX"],
+            "author": {
+                "name": "잭 (NGA)",
+                "email": "jack@nextgenai.kr"
+            }
+        },
+        {
+            "name": "api-research",
+            "source": "./plugins/api-research",
+            "description": "외부 서비스의 API 존재 여부·기능·인증 방식·n8n 연동 가능성을 조사. 공식 문서 크롤링 후 구조화 정리.",
+            "version": "1.0.0",
+            "category": "research",
+            "keywords": ["api", "research", "n8n", "integration", "webhook", "연동"],
+            "author": {
+                "name": "잭 (NGA)",
+                "email": "jack@nextgenai.kr"
+            }
+        }
+    ]
+}

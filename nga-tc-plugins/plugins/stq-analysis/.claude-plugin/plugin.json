@@ -1,0 +1,7 @@
+{
+    "name": "stq-analysis",
+    "version": "1.0.0",
+    "description": "업무 리스트 SQT 5-Layer 자동 분류·스코어링",
+    "author": { "name": "잭 (NGA)", "email": "jack@nextgenai.kr" },
+    "license": "Internal"
+}

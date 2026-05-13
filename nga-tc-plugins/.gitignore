@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python (혹시 스크립트 실행 시 생기는 것 방지)
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 작업 임시 파일
+*.tmp
+*.bak
+~$*
+
+# 환경 변수
+.env
+.env.local

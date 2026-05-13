@@ -1,0 +1,7 @@
+{
+    "name": "api-research",
+    "version": "1.0.0",
+    "description": "외부 서비스 API 조사 및 n8n 연동 가능성 분석",
+    "author": { "name": "잭 (NGA)", "email": "jack@nextgenai.kr" },
+    "license": "Internal"
+}

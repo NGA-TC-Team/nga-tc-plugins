@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f7fb; --surface:#ffffff; --border:#e5e8ef;
+    --text:#0f172a; --text-sub:#64748b; --text-mute:#94a3b8;
+    --primary:#2563eb; --primary-soft:#eff4ff; --accent:#fbbf24;
+    --ok:#10b981; --warn:#f59e0b; --bad:#ef4444;
+    --score-5:#059669; --score-4:#10b981; --score-3:#f59e0b; --score-2:#f97316; --score-1:#ef4444;
+    --shadow:0 1px 2px rgba(15,23,42,.04), 0 4px 16px rgba(15,23,42,.05);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.55}
+  .container{max-width:1400px;margin:0 auto;padding:32px 24px 64px}
+
+  header{margin-bottom:28px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--primary);background:var(--primary-soft);padding:6px 12px;border-radius:999px;letter-spacing:0.02em}
+  .eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--primary)}
+  h1{font-size:28px;font-weight:700;margin-top:12px;letter-spacing:-0.02em}
+  .subtitle{color:var(--text-sub);font-size:14px;margin-top:6px}
+  .meta{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:13px;color:var(--text-mute)}
+  .meta span{display:inline-flex;align-items:center;gap:6px}
+  .meta span::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--text-mute)}
+
+  .kpi-grid{display:grid;gap:16px;margin-bottom:28px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:transform .15s ease, box-shadow .15s ease}
+  .kpi:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(15,23,42,.05),0 12px 28px rgba(15,23,42,.08)}
+  .kpi .label{font-size:12px;color:var(--text-sub);font-weight:500;text-transform:uppercase;letter-spacing:0.05em}
+  .kpi .value{font-size:32px;font-weight:700;margin-top:8px;letter-spacing:-0.02em}
+  .kpi .unit{font-size:14px;color:var(--text-mute);font-weight:500;margin-left:4px}
+  .kpi .hint{font-size:12px;color:var(--text-sub);margin-top:6px}
+  .kpi .accent{position:absolute;top:0;left:0;right:0;height:3px;background:var(--primary)}
+  .kpi[data-accent="ok"] .accent{background:var(--ok)}
+  .kpi[data-accent="accent"] .accent{background:var(--accent)}
+  .kpi[data-accent="purple"] .accent{background:#8b5cf6}
+  .kpi[data-accent="bad"] .accent{background:var(--bad)}
+
+  .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:20px}
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+  .section-title{font-size:16px;font-weight:700}
+  .section-sub{font-size:13px;color:var(--text-sub);margin-top:2px}
+
+  .chart-grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+  @media(max-width:960px){.chart-grid{grid-template-columns:1fr}}
+  .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .chart-wrap{position:relative;height:280px}
+
+  .fb-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .fb-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .fb-card h3{font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .fb-card .ct{font-size:12px;color:var(--text-mute);margin-bottom:14px}
+  .fb-card .list{max-height:320px;overflow-y:auto;padding-right:4px}
+  .fb-card .list::-webkit-scrollbar{width:6px}
+  .fb-card .list::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:3px}
+  .fb-item{padding:10px 12px;border-left:3px solid var(--border);margin-bottom:8px;font-size:13px;color:var(--text);line-height:1.5;background:#fafbfc;border-radius:4px}
+  .fb-item.pos{border-left-color:var(--ok)}
+  .fb-item.neg{border-left-color:var(--bad)}
+  .fb-item.info{border-left-color:var(--primary)}
+  .fb-item .who{display:block;font-size:11px;color:var(--text-mute);margin-top:4px}
+
+  .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .filters select, .filters input{font-family:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s}
+  .filters select:focus, .filters input:focus{border-color:var(--primary)}
+  .filters input[type="search"]{min-width:220px}
+  .btn-reset{font-family:inherit;font-size:13px;padding:8px 14px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;color:var(--text-sub);transition:all .15s}
+  .btn-reset:hover{background:#f1f5f9;color:var(--text)}
+
+  .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead{background:#f8fafc}
+  th{padding:12px 14px;text-align:left;font-weight:600;color:var(--text-sub);font-size:12px;letter-spacing:0.02em;text-transform:uppercase;border-bottom:1px solid var(--border);user-select:none;white-space:nowrap;cursor:pointer;transition:color .15s}
+  th:hover{color:var(--text)}
+  th.sortable::after{content:" ⇅";color:var(--text-mute);font-size:10px}
+  th.sort-asc::after{content:" ↑";color:var(--primary);font-weight:700}
+  th.sort-desc::after{content:" ↓";color:var(--primary);font-weight:700}
+  td{padding:12px 14px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+  tbody tr:hover{background:#f8fafc}
+  tbody tr:last-child td{border-bottom:none}
+  .score-badge{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:24px;padding:0 8px;border-radius:6px;font-weight:700;font-size:12px;color:#fff}
+  .score-5{background:var(--score-5)} .score-4{background:var(--score-4)} .score-3{background:var(--score-3)} .score-2{background:var(--score-2)} .score-1{background:var(--score-1)}
+  .cat-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;background:#eff4ff;color:var(--primary)}
+  .cat-c0{background:#dbeafe;color:#1e40af} .cat-c1{background:#fef3c7;color:#92400e} .cat-c2{background:#ede9fe;color:#6d28d9}
+  .cat-c3{background:#dcfce7;color:#166534} .cat-c4{background:#fee2e2;color:#991b1b} .cat-c5{background:#fce7f3;color:#9f1239}
+  .cell-text{max-width:320px;white-space:normal;line-height:1.45;color:var(--text)}
+  .cell-mute{color:var(--text-mute);font-size:12px}
+
+  .pager{display:flex;justify-content:space-between;align-items:center;margin-top:16px;font-size:13px;color:var(--text-sub);flex-wrap:wrap;gap:12px}
+  .pager-btns{display:flex;gap:6px}
+  .pager-btns button{font-family:inherit;padding:6px 12px;border:1px solid var(--border);background:var(--surface);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text);transition:all .15s}
+  .pager-btns button:hover:not(:disabled){background:#f1f5f9}
+  .pager-btns button:disabled{opacity:0.4;cursor:not-allowed}
+  .pager-btns button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .empty{text-align:center;padding:40px 20px;color:var(--text-mute);font-size:14px}
+
+  @media(max-width:640px){
+    .container{padding:20px 14px 48px} h1{font-size:22px} .kpi .value{font-size:26px}
+    .section{padding:18px 16px} .chart-box{padding:16px} .chart-wrap{height:240px}
+    th,td{padding:10px} .cell-text{max-width:200px;font-size:12px}
+  }
+  footer{text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid var(--border);color:var(--text-mute);font-size:12px}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <span class="eyebrow">Data Dashboard</span>
+    <h1 id="dash-title">__TITLE__</h1>
+    <p class="subtitle" id="dash-subtitle">데이터 분석 · 인터랙티브 대시보드</p>
+    <div class="meta">
+      <span>원본: __SOURCE_NAME__</span>
+      <span>생성일: __GEN_DATE__</span>
+      <span id="meta-total">응답 수: -</span>
+    </div>
+  </header>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="chart-grid" id="chart-grid-top"></div>
+  <div id="chart-full-wrap"></div>
+  <div class="fb-grid" id="fb-grid"></div>
+
+  <div class="section" style="margin-top:20px">
+    <div class="section-head">
+      <div>
+        <div class="section-title">전체 데이터 상세</div>
+        <div class="section-sub">필터 · 정렬 · 검색 가능</div>
+      </div>
+      <div class="filters" id="filters"></div>
+    </div>
+    <div class="table-wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+    <div class="pager">
+      <div id="pager-info">-</div>
+      <div class="pager-btns" id="pager-btns"></div>
+    </div>
+  </div>
+
+  <footer>© Data Dashboard · Generated by data-dashboard skill</footer>
+</div>
+
+<script>
+/* ============ CONFIG (replaced at build) ============ */
+const DATA        = __DATA_PLACEHOLDER__;
+const COLUMN_META = __COLUMN_META__;    // { col: {type: 'numeric'|'categorical'|'date'|'text', label: '...'} }
+const KPI_CONFIG  = __KPI_CONFIG__;     // [{label, value, unit, hint, accent}]
+const CHART_CONFIG= __CHART_CONFIG__;   // {top: [chart1, chart2], full: chartFull, charts:[...]}
+const FILTER_COLS = __FILTER_COLS__;    // ["dept", ...]
+const SEARCH_COLS = __SEARCH_COLS__;    // ["feedback", ...]
+const TABLE_COLS  = __TABLE_COLS__;     // ["timestamp", "dept", ...]
+const FEEDBACK_CARDS = __FEEDBACK_CARDS__; // [{title, emoji, col, filter, cls}]
+
+/* ============ UTIL ============ */
+const $  = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const fmt = (n, d=1) => (n == null || isNaN(n)) ? '-' : Number(n).toFixed(d);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ============ META ============ */
+$('#meta-total').textContent = `응답 수: ${DATA.length}건`;
+
+/* ============ KPI ============ */
+(function renderKPI(){
+  const grid = $('#kpi-grid');
+  grid.innerHTML = KPI_CONFIG.map(k => `
+    <div class="kpi" data-accent="${k.accent || 'primary'}">
+      <div class="accent"></div>
+      <div class="label">${esc(k.label)}</div>
+      <div class="value">${esc(k.value)}${k.unit ? `<span class="unit">${esc(k.unit)}</span>` : ''}</div>
+      <div class="hint">${esc(k.hint || '')}</div>
+    </div>`).join('');
+})();
+
+/* ============ CHARTS ============ */
+const PALETTE = ['#2563eb','#10b981','#fbbf24','#8b5cf6','#ef4444','#06b6d4','#f97316','#ec4899'];
+const SCORE_COLORS = ['#ef4444','#f97316','#f59e0b','#10b981','#059669']; // 1→5
+
+function buildChart(canvasId, cfg){
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  const baseOpts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{ display: cfg.showLegend !== false, position:'bottom', labels:{font:{family:'Pretendard Variable',size:12},boxWidth:12,boxHeight:12,padding:12} },
+      tooltip:{ callbacks:{} }
+    },
+    scales: cfg.scales || {
+      x:{grid:{display:false},ticks:{font:{family:'Pretendard Variable',size:11}}},
+      y:{grid:{color:'#f1f5f9'},ticks:{font:{family:'Pretendard Variable',size:11},precision:0},beginAtZero:true}
+    }
+  };
+  if(cfg.indexAxis) baseOpts.indexAxis = cfg.indexAxis;
+  if(cfg.tooltipFmt){
+    baseOpts.plugins.tooltip.callbacks.label = (c) => {
+      const v = c.parsed.y ?? c.parsed.x ?? c.parsed;
+      return cfg.tooltipFmt(c, v);
+    };
+  }
+  new Chart(ctx, { type: cfg.type || 'bar', data: cfg.data, options: baseOpts });
+}
+
+/* top row charts */
+(function renderChartsTop(){
+  const wrap = $('#chart-grid-top');
+  if(!CHART_CONFIG.top || !CHART_CONFIG.top.length){ wrap.style.display='none'; return; }
+  wrap.innerHTML = CHART_CONFIG.top.map((c,i) => `
+    <div class="chart-box">
+      <div class="section-head"><div>
+        <div class="section-title">${esc(c.title)}</div>
+        <div class="section-sub">${esc(c.subtitle || '')}</div>
+      </div></div>
+      <div class="chart-wrap"><canvas id="chart-top-${i}"></canvas></div>
+    </div>`).join('');
+  CHART_CONFIG.top.forEach((c,i) => buildChart(`chart-top-${i}`, c));
+})();
+
+/* full row chart */
+(function renderChartFull(){
+  if(!CHART_CONFIG.full){ return; }
+  const c = CHART_CONFIG.full;
+  $('#chart-full-wrap').innerHTML = `
+    <div class="section" style="margin-top:4px">
+      <div class="section-head"><div>
+        <div class="section-title">${esc(c.title)}</div>
+        <div class="section-sub">${esc(c.subtitle || '')}</div>
+      </div></div>
+      <div class="chart-wrap" style="height:300px"><canvas id="chart-full"></canvas></div>
+    </div>`;
+  buildChart('chart-full', c);
+})();
+
+/* ============ FEEDBACK CARDS ============ */
+(function renderFeedback(){
+  const grid = $('#fb-grid');
+  if(!FEEDBACK_CARDS || !FEEDBACK_CARDS.length){ grid.style.display='none'; return; }
+  grid.innerHTML = FEEDBACK_CARDS.map((c, idx) => {
+    const items = DATA.filter(d => {
+      const v = d[c.col];
+      if(!v || String(v).trim().length === 0) return false;
+      if(c.minLen && String(v).length < c.minLen) return false;
+      if(c.exclude && c.exclude.includes(String(v).trim())) return false;
+      if(c.filter && !c.filter.call(null, d)) return false;
+      return true;
+    }).map(d => ({
+      text: String(d[c.col]),
+      meta: c.metaCols ? c.metaCols.map(m => d[m]).filter(x=>x!=null).join(' · ') : ''
+    }));
+    const body = items.length
+      ? items.map(it => `<div class="fb-item ${c.cls || 'info'}">${esc(it.text)}${it.meta ? `<span class="who">${esc(it.meta)}</span>` : ''}</div>`).join('')
+      : '<div class="empty" style="padding:20px">해당 항목 없음</div>';
+    return `
+      <div class="fb-card">
+        <h3>${esc(c.emoji || '💬')} ${esc(c.title)}</h3>
+        <div class="ct">${items.length}건</div>
+        <div class="list">${body}</div>
+      </div>`;
+  }).join('');
+})();
+
+/* ============ TABLE ============ */
+let state = {sort:{col: TABLE_COLS[0], dir:'desc'}, page:1, perPage:10};
+
+/* thead */
+$('#thead').innerHTML = `<tr>${TABLE_COLS.map(c => {
+  const meta = COLUMN_META[c] || {};
+  return `<th class="sortable" data-col="${esc(c)}" title="${esc(c)}">${esc(meta.label || c)}</th>`;
+}).join('')}</tr>`;
+
+/* filters */
+const filtersEl = $('#filters');
+FILTER_COLS.forEach(col => {
+  const opts = [...new Set(DATA.map(d => d[col]).filter(v => v != null && String(v).length))].sort();
+  const label = (COLUMN_META[col] && COLUMN_META[col].label) || col;
+  filtersEl.insertAdjacentHTML('beforeend',
+    `<select data-filter="${esc(col)}"><option value="">${esc(label)} 전체</option>${opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>`);
+});
+if(SEARCH_COLS.length){
+  filtersEl.insertAdjacentHTML('beforeend',
+    `<input type="search" id="f-search" placeholder="내용 검색">`);
+}
+filtersEl.insertAdjacentHTML('beforeend', `<button class="btn-reset" id="f-reset">초기화</button>`);
+
+function getFiltered(){
+  const activeFilters = {};
+  $$('[data-filter]').forEach(s => { if(s.value) activeFilters[s.dataset.filter] = s.value; });
+  const q = ($('#f-search') ? $('#f-search').value : '').trim().toLowerCase();
+  return DATA.filter(d => {
+    for(const [col,val] of Object.entries(activeFilters)){
+      if(String(d[col]) !== val) return false;
+    }
+    if(q){
+      const blob = SEARCH_COLS.map(c => String(d[c] || '')).join(' ').toLowerCase();
+      if(!blob.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function getSorted(arr){
+  const {col, dir} = state.sort;
+  const sign = dir === 'asc' ? 1 : -1;
+  const meta = COLUMN_META[col] || {};
+  return [...arr].sort((a,b) => {
+    let av = a[col], bv = b[col];
+    if(meta.type === 'numeric'){
+      av = Number(av) || 0; bv = Number(bv) || 0;
+      return (av - bv) * sign;
+    }
+    return String(av ?? '').localeCompare(String(bv ?? '')) * sign;
+  });
+}
+
+function renderCell(col, val){
+  const meta = COLUMN_META[col] || {};
+  if(val == null || String(val).trim() === '') return '<span class="cell-mute">-</span>';
+  if(meta.render === 'score'){
+    const cls = `score-${Math.max(1, Math.min(5, Math.round(Number(val))))}`;
+    return `<span class="score-badge ${cls}">${esc(val)}</span>`;
+  }
+  if(meta.render === 'category'){
+    const uniques = meta._uniques || (meta._uniques = [...new Set(DATA.map(d => d[col]))].filter(x=>x!=null));
+    const idx = uniques.indexOf(val) % 6;
+    return `<span class="cat-badge cat-c${idx}">${esc(val)}</span>`;
+  }
+  if(meta.type === 'text') return `<span class="cell-text">${esc(val)}</span>`;
+  if(meta.type === 'date')    return `<span class="cell-mute">${esc(val)}</span>`;
+  return esc(val);
+}
+
+function renderTable(){
+  const filtered = getFiltered();
+  const sorted = getSorted(filtered);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / state.perPage));
+  if(state.page > totalPages) state.page = totalPages;
+  const start = (state.page - 1) * state.perPage;
+  const slice = sorted.slice(start, start + state.perPage);
+
+  const tbody = $('#tbody');
+  if(!slice.length){
+    tbody.innerHTML = `<tr><td colspan="${TABLE_COLS.length}" class="empty">조건에 맞는 데이터가 없습니다.</td></tr>`;
+  } else {
+    tbody.innerHTML = slice.map(d =>
+      `<tr>${TABLE_COLS.map(c => `<td>${renderCell(c, d[c])}</td>`).join('')}</tr>`
+    ).join('');
+  }
+
+  $$('th.sortable').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if(th.dataset.col === state.sort.col){
+      th.classList.add(state.sort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+
+  $('#pager-info').textContent = sorted.length
+    ? `${start+1}-${Math.min(start + state.perPage, sorted.length)} / 총 ${sorted.length}건`
+    : '총 0건';
+
+  const pb = $('#pager-btns'); pb.innerHTML = '';
+  const mkBtn = (label, page, opts={}) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.disabled = !!opts.disabled;
+    if(opts.active) b.classList.add('active');
+    b.addEventListener('click', () => { state.page = page; renderTable(); });
+    pb.appendChild(b);
+  };
+  mkBtn('‹', Math.max(1, state.page - 1), { disabled: state.page <= 1 });
+  const win = 5;
+  let from = Math.max(1, state.page - Math.floor(win/2));
+  let to = Math.min(totalPages, from + win - 1);
+  from = Math.max(1, to - win + 1);
+  for(let p = from; p <= to; p++) mkBtn(String(p), p, { active: p === state.page });
+  mkBtn('›', Math.min(totalPages, state.page + 1), { disabled: state.page >= totalPages });
+}
+
+$$('th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if(state.sort.col === col) state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+    else { state.sort.col = col; state.sort.dir = 'desc'; }
+    renderTable();
+  });
+});
+
+$$('[data-filter]').forEach(el => el.addEventListener('change', () => { state.page = 1; renderTable(); }));
+if($('#f-search')) $('#f-search').addEventListener('input', () => { state.page = 1; renderTable(); });
+$('#f-reset').addEventListener('click', () => {
+  $$('[data-filter]').forEach(s => s.value = '');
+  if($('#f-search')) $('#f-search').value = '';
+  state.page = 1; renderTable();
+});
+
+renderTable();
+</script>
+</body>
+</html>

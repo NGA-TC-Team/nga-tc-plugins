@@ -1,0 +1,7 @@
+{
+    "name": "nga-proofread",
+    "version": "0.1.0",
+    "description": "NGA 컨설팅 톤으로 한국어 텍스트 교정·다듬기",
+    "author": { "name": "잭 (NGA)", "email": "jack@nextgenai.kr" },
+    "license": "Internal"
+}
