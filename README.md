@@ -7,10 +7,8 @@ NGA-TC-Team의 Claude Code 플러그인 마켓플레이스. NGA 컨설팅 현장
 Claude Code 안에서:
 
 ```bash
-/plugin marketplace add <your-github-id>/nga-tc-plugins
+/plugin marketplace add NGA-TC-Team/nga-tc-plugins
 ```
-
-(`<your-github-id>` 는 본인 GitHub 사용자명으로 교체)
 
 ## 설치 방법
 
