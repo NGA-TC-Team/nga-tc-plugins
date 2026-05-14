@@ -1,7 +1,7 @@
 {
     "name": "aiq-leader-eval",
-    "version": "1.1.0",
-    "description": "AI-Q 리더 평가 가이드 HTML 부서별 생성",
+    "version": "1.2.0",
+    "description": "AI-Q 리더 평가 가이드 v7 HTML 부서별 생성 (4축 × 15 sub-item · ⭐사례 헤더카드 · 멤버별 저장)",
     "author": { "name": "잭 (NGA)", "email": "jack@nextgenai.kr" },
     "license": "Internal"
 }

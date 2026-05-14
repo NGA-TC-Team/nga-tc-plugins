@@ -24,10 +24,10 @@
         {
             "name": "aiq-leader-eval",
             "source": "./plugins/aiq-leader-eval",
-            "description": "AI-Q 리더 평가 가이드 HTML 자동 생성. NGA 자가진단 설문(CSV/TSV/Excel)을 4축×15 sub-item 신호 매트릭스 + KPI 대시보드 + 멤버별 점수 입력 HTML로 변환.",
-            "version": "1.0.0",
+            "description": "AI-Q 리더 평가 가이드 v7 HTML 자동 생성. NGA 자가진단 설문(CSV/TSV/Excel)을 4축×15 sub-item(⭐사례 헤더카드·s44 팀 문화 포함) + 6패널 KPI 대시보드 + 멤버별 점수 입력·저장 HTML로 변환.",
+            "version": "1.2.0",
             "category": "evaluation",
-            "keywords": ["AI-Q", "evaluation", "leader", "평가", "AX", "진단"],
+            "keywords": ["AI-Q", "evaluation", "leader", "평가", "AX", "진단", "v7"],
             "author": {
                 "name": "잭 (NGA)",
                 "email": "jack@nextgenai.kr"

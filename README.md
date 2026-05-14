@@ -29,7 +29,7 @@ Claude Code 안에서:
 | 이름 | 카테고리 | 설명 | 버전 |
 |---|---|---|---|
 | `nga-proofread` | writing | 한국어 텍스트 NGA 톤 교정 | 0.1.0 |
-| `aiq-leader-eval` | evaluation | AI-Q 리더 평가 가이드 HTML 생성 | 1.0.0 |
+| `aiq-leader-eval` | evaluation | AI-Q 리더 평가 가이드 v7 HTML 생성 | 1.2.0 |
 | `data-dashboard` | data | CSV/XLSX → 인터랙티브 대시보드 | 1.0.0 |
 | `stq-analysis` | consulting | 업무 SQT 5-Layer 분류·스코어링 | 1.0.0 |
 | `api-research` | research | 외부 서비스 API 조사 | 1.0.0 |

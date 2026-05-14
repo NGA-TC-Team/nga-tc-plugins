@@ -1,18 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-AI-Q 리더 평가 가이드 v6 HTML 빌더.
-
-NGA "AI 활용 현황 공유 설문" 응답(xlsx / csv / tsv)을 입력받아
-잭(NGA)이 코어비즈 26명 대상으로 검증한 평가 가이드 양식과 동일한
-단일 HTML 파일을 생성한다.
-
-매핑·신호 분류·집계·HTML 빌딩을 모두 이 스크립트 한 파일에서 처리한다.
-규칙 명세는 같은 폴더 references/ 의 column_mapping.md / signal_rules.md / axis_schema.md.
-
-Usage:
-    python3 build_aiq_html.py --input <xlsx_or_csv> --department <부서명> --output <out.html>
-"""
+"""AI-Q 리더 평가 가이드 v7 HTML 빌더 (경영관리 v7 양식 기반)."""
 import argparse
 import csv
 import html
@@ -22,15 +10,13 @@ import os
 import re
 import sys
 
-# stdout UTF-8 (Windows 한글 깨짐 방지)
 try:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 except Exception:
     pass
 
 
-# ---------- 1. 컬럼 매핑 (키워드 기반 부분 일치) ----------
-# 표준 키 → 헤더에 포함되어야 하는 키워드 후보들 (any 매칭)
+# ---------- 컬럼 매핑 ----------
 COLUMN_KEYWORDS = {
     'email':   ['이메일', 'email'],
     'name':    ['이름'],
@@ -67,16 +53,14 @@ COLUMN_KEYWORDS = {
     'q8_7':    ['다음 3개월'],
 }
 
-# 우선순위가 필요한 케이스 (앞 키 우선 매칭 → 뒤 키는 남은 컬럼에서)
-# 예: q3_1과 q3_2가 동시에 "1순위"를 포함하므로 q3_2(산출물 링크)를 먼저 매칭
 MAPPING_ORDER = [
     'email', 'name', 'team', 'role', 'leader',
     'q1_1', 'q1_2', 'q1_3',
     'q2_1', 'q2_2', 'q2_3',
-    'q3_2', 'q3_4', 'q3_6',  # 산출물 링크들을 먼저 잡고
-    'q3_1', 'q3_3', 'q3_5',  # 본 사례 컬럼을 나중에
+    'q3_2', 'q3_4', 'q3_6',
+    'q3_1', 'q3_3', 'q3_5',
     'q4_1', 'q4_2', 'q4_3',
-    'q5_2', 'q5_5',          # 절약 시간·산출물 링크 먼저
+    'q5_2', 'q5_5',
     'q5_1', 'q5_3', 'q5_4',
     'q6_1', 'q6_2', 'q6_3',
     'q8_3', 'q8_4', 'q8_5', 'q8_6', 'q8_7',
@@ -84,7 +68,6 @@ MAPPING_ORDER = [
 
 
 def map_columns(headers):
-    """헤더 리스트를 받아 표준 키 → 컬럼 인덱스 dict 반환."""
     used = set()
     mapping = {}
     for key in MAPPING_ORDER:
@@ -100,9 +83,7 @@ def map_columns(headers):
     return mapping
 
 
-# ---------- 2. 데이터 읽기 ----------
 def read_rows(path):
-    """xlsx / csv / tsv 모두 동일한 [[cell, ...], ...] 형태로 반환."""
     ext = os.path.splitext(path)[1].lower()
     if ext in ('.xlsx', '.xlsm'):
         import openpyxl
@@ -113,16 +94,14 @@ def read_rows(path):
         delim = '\t' if ext == '.tsv' else ','
         with open(path, 'r', encoding='utf-8-sig', newline='') as f:
             return [row for row in csv.reader(f, delimiter=delim)]
-    else:
-        raise ValueError(f'지원하지 않는 파일 형식: {ext}')
+    raise ValueError(f'지원하지 않는 파일 형식: {ext}')
 
 
-# ---------- 3. 신호 분류 (references/signal_rules.md 참조) ----------
+# ---------- 신호 분류 ----------
 def parse_multi(s):
     if not s:
         return []
-    parts = re.split(r'[,;\n]', s)
-    return [p.strip() for p in parts if p.strip()]
+    return [p.strip() for p in re.split(r'[,;\n]', s) if p.strip()]
 
 
 def sig_tool(m):
@@ -146,12 +125,9 @@ def sig_case(m):
     cases = [c for c in [m['q3_1'], m['q3_3'], m['q3_5']] if c]
     n = len(cases)
     avg_len = (sum(len(c) for c in cases) // n) if n else 0
-    if n >= 3 and avg_len >= 60:
-        return ('green',  '풍부', f'{n}건 / 평균 {avg_len}자')
-    if n >= 2 or (n == 1 and avg_len >= 80):
-        return ('yellow', '보유', f'{n}건 / 평균 {avg_len}자')
-    if n >= 1:
-        return ('yellow', '단편', f'{n}건 / 평균 {avg_len}자')
+    if n >= 3 and avg_len >= 60: return ('green',  '풍부', f'{n}건 / 평균 {avg_len}자')
+    if n >= 2 or (n == 1 and avg_len >= 80): return ('yellow', '보유', f'{n}건 / 평균 {avg_len}자')
+    if n >= 1: return ('yellow', '단편', f'{n}건 / 평균 {avg_len}자')
     return ('red', '부재', '응답 없음')
 
 
@@ -194,30 +170,28 @@ def sig_share(m):
     return ('red', '미공유', '응답 없음')
 
 
-# ---------- 4. 도구 이름 정규화 ----------
 def normalize_tool(t):
     t = (t or '').strip()
     low = t.lower()
-    if 'claude'     in low or '클로드' in t: return 'Claude'
-    if 'chatgpt'    in low or 'gpt' in low: return 'ChatGPT'
-    if 'gemini'     in low or '제미나이' in t or '제미니' in t: return 'Gemini'
-    if 'notion ai'  in low or 'notion' in low: return 'Notion AI'
+    if 'claude' in low or '클로드' in t: return 'Claude'
+    if 'chatgpt' in low or 'gpt' in low: return 'ChatGPT'
+    if 'gemini' in low or '제미나이' in t or '제미니' in t: return 'Gemini'
+    if 'notion ai' in low or 'notion' in low: return 'Notion AI'
     if 'perplexity' in low or '퍼플렉시티' in t: return 'Perplexity'
-    if 'cursor'     in low or '커서' in t: return 'Cursor'
-    if 'copilot'    in low: return 'Copilot'
+    if 'cursor' in low or '커서' in t: return 'Cursor'
+    if 'copilot' in low: return 'Copilot'
     if 'midjourney' in low or '미드저니' in t: return 'Midjourney'
-    if 'firefly'    in low: return 'Firefly'
-    if 'n8n'        in low: return 'n8n'
-    if 'genspark'   in low: return 'Genspark'
-    if 'figma'      in low: return 'Figma AI'
-    if 'grok'       in low: return 'Grok'
-    if '힉스필드'   in t  or 'hicks' in low or 'higgs' in low: return 'Higgsfield'
-    if 'lumi'       in low or '루미' in t: return 'Lumi'
+    if 'firefly' in low: return 'Firefly'
+    if 'n8n' in low: return 'n8n'
+    if 'genspark' in low: return 'Genspark'
+    if 'figma' in low: return 'Figma AI'
+    if 'grok' in low: return 'Grok'
+    if '힉스필드' in t or 'hicks' in low or 'higgs' in low: return 'Higgsfield'
+    if 'lumi' in low or '루미' in t: return 'Lumi'
     if '사내' in t or '자체' in t: return '사내 자체 툴'
     return t
 
 
-# ---------- 5. 직책 정렬 ----------
 ROLE_ORDER = {
     '팀장': 0, '팀리더': 1, '파트장': 1, '파트리더': 2, '매니저': 3,
     'MD': 4, 'AMD': 5, 'PM': 6, '시니어': 7, '사원': 8, '팀원': 9, '인턴': 10,
@@ -233,7 +207,6 @@ def role_sort_key(m):
     return 99
 
 
-# ---------- 6. HTML helpers ----------
 SIG_CLASS = {'green': 'sig-green', 'yellow': 'sig-yellow', 'red': 'sig-red'}
 SIG_EMOJI = {'green': '🟢', 'yellow': '🟡', 'red': '🔴'}
 
@@ -249,17 +222,18 @@ def evid(label, val):
 
 
 def score_row(i, sub):
-    return f'''<div class="score-row">
-            <span class="score-prompt">🎯 리더 점수 (1~5):</span>
-            <div class="score-buttons" data-member="{i}" data-sub="{sub}">
-              <button onclick="setScore({i},'{sub}',1)">1</button>
-              <button onclick="setScore({i},'{sub}',2)">2</button>
-              <button onclick="setScore({i},'{sub}',3)">3</button>
-              <button onclick="setScore({i},'{sub}',4)">4</button>
-              <button onclick="setScore({i},'{sub}',5)">5</button>
-              <button class="clear-btn" onclick="setScore({i},'{sub}',null)">지우기</button>
-            </div>
-          </div>'''
+    return (
+        f'<div class="score-row">'
+        f'<span class="score-prompt">🎯 리더 점수 (1~5):</span>'
+        f'<div class="score-buttons" data-member="{i}" data-sub="{sub}">'
+        f'<button onclick="setScore({i},\'{sub}\',1)">1</button>'
+        f'<button onclick="setScore({i},\'{sub}\',2)">2</button>'
+        f'<button onclick="setScore({i},\'{sub}\',3)">3</button>'
+        f'<button onclick="setScore({i},\'{sub}\',4)">4</button>'
+        f'<button onclick="setScore({i},\'{sub}\',5)">5</button>'
+        f'<button class="clear-btn" onclick="setScore({i},\'{sub}\',null)">지우기</button>'
+        f'</div></div>'
+    )
 
 
 def signal_line(ax, sub=None):
@@ -269,7 +243,16 @@ def signal_line(ax, sub=None):
     return s
 
 
-# ---------- 7. 메인 빌더 ----------
+HINT_S22 = '💡 이전 작업물을 직접 비교하거나, 현재 제출물을 BaseLine으로 잡고 다음 분기 평가에 반영'
+HINT_S23 = '💡 부서 맥락·이전 사례 반영 작업 → 3점 / 단순 프롬프트만 사용 → 2점'
+HINT_S31 = '💡 추가 추적 필요: 어떻게 자동화? (Claude / GPTs / Claude Code / Cowork / n8n 등)'
+HINT_S44 = '💡 4-1~3 문항·채널·전파 사례를 종합해서 리더가 판정. 개인 활용에 그치면 2점 / 팀 차원 관행 정착에 기여하면 4~5점'
+
+
+def hint_box(text):
+    return f'<div style="margin:6px 0 10px 0; padding:8px 10px; background:#eef4ff; border-left:3px solid #4a7fdb; font-size:0.88em; color:#2c4670; line-height:1.55;">{esc(text)}</div>'
+
+
 def build(input_path, dept, output_path):
     rows = read_rows(input_path)
     if not rows or len(rows) < 2:
@@ -278,7 +261,6 @@ def build(input_path, dept, output_path):
     headers = rows[0]
     col_map = map_columns(headers)
 
-    # 매핑 실패 컬럼 경고
     missing = [k for k in COLUMN_KEYWORDS if k not in col_map]
     if missing:
         print(f'  ⚠️  매핑 실패 컬럼 ({len(missing)}): {missing}', file=sys.stderr)
@@ -290,7 +272,6 @@ def build(input_path, dept, output_path):
         v = row[idx]
         return '' if v is None else str(v).strip()
 
-    # 멤버 구성 (이름 있는 행만)
     members = []
     for row in rows[1:]:
         if not any(c is not None and str(c).strip() for c in row):
@@ -323,7 +304,6 @@ def build(input_path, dept, output_path):
         'share':  sig_share(m),
     } for m in members]
 
-    # 집계
     tool_usage = {}
     for m in members:
         for t in parse_multi(m['q2_1']):
@@ -341,10 +321,10 @@ def build(input_path, dept, output_path):
         for d in parse_multi(m['q8_4']):
             difficulty_top[d] = difficulty_top.get(d, 0) + 1
 
-    n_regular   = sum(1 for m in members if any(k in (m['q1_3'] or '') for k in ['자주', '거의 항상', '50', '75']))
-    n_auto      = sum(1 for m in members if any(k in (m['q5_1'] or '') for k in ['3–5', '3-5', '6개']))
-    n_nonshare  = sum(1 for m in members if any('공유한 적 없음' in c for c in parse_multi(m['q6_1'])))
-    n_time      = sum(1 for m in members if any(k in (m['q5_2'] or '') for k in ['3–6', '3-6', '6–10', '6-10', '10시간']))
+    n_regular  = sum(1 for m in members if any(k in (m['q1_3'] or '') for k in ['자주', '거의 항상', '50', '75']))
+    n_auto     = sum(1 for m in members if any(k in (m['q5_1'] or '') for k in ['3–5', '3-5', '6개']))
+    n_nonshare = sum(1 for m in members if any('공유한 적 없음' in c for c in parse_multi(m['q6_1'])))
+    n_time     = sum(1 for m in members if any(k in (m['q5_2'] or '') for k in ['3–6', '3-6', '6–10', '6-10', '10시간']))
 
     aggs = {
         'tool_usage': tool_usage,
@@ -354,11 +334,14 @@ def build(input_path, dept, output_path):
         'auto_count_dist': auto_count_dist,
         'difficulty_top': difficulty_top,
         'total_respondents': n_total,
+        'kpi': {
+            'respondents': n_total, 'regular_users': n_regular,
+            'automation_owners': n_auto, 'non_sharers': n_nonshare, 'time_savers': n_time,
+        },
     }
 
     print(f'  정기:{n_regular} 자동화3+:{n_auto} 미공유:{n_nonshare} 시간3h+:{n_time}')
 
-    # 요약 행
     sum_rows = []
     for i, m in enumerate(members):
         s = sigs[i]
@@ -372,10 +355,11 @@ def build(input_path, dept, output_path):
             f'</tr>'
         )
 
-    tabs = [f'<button class="{"active" if i == 0 else ""}" onclick="showMember({i})" id="tab-{i}">{esc(m["name"])}</button>'
-            for i, m in enumerate(members)]
+    tabs = [
+        f'<button class="{"active" if i == 0 else ""}" onclick="showMember({i})" id="tab-{i}">{esc(m["name"])}</button>'
+        for i, m in enumerate(members)
+    ]
 
-    # 멤버 상세
     details = []
     for i, m in enumerate(members):
         s = sigs[i]
@@ -387,139 +371,137 @@ def build(input_path, dept, output_path):
         ax3       = s['impact']
         ax4       = s['share']
 
-        a1 = f'''
-      <div class="axis-block {ax1[0]}">
-        <div class="axis-header">
-          <h4>01 AI 툴 활용 <span class="axis-weight">(가중치 25%)</span></h4>
-          <span class="axis-avg empty" id="axis-avg-{i}-a1">축 평균 <strong>—</strong></span>
-        </div>
-        <div class="signal-line">{signal_line(ax1, ax1s)}</div>
-        <div class="synth-box"><strong>정성 코멘트</strong> — 도구 다양성·정착 깊이·새 도구 시도의 균형을 보세요. 한 도구만 강하게 쓰는 경우 1-2가, 정착이 약한 경우 1-1·1-3이 낮을 수 있습니다.</div>
-        <div class="subitem"><div class="subitem-label">1-1. 업무 내 AI 비중 (정기 사용 강도)</div>
-          <div class="evidence-list">{evid("q1.3 · AI가 함께 작동하는 업무 비중", m["q1_3"])}</div>
-          {score_row(i, "s11")}</div>
-        <div class="subitem"><div class="subitem-label">1-2. 정기 사용 도구 다양성</div>
-          <div class="evidence-list">{evid("q2.1 · 정기 사용 도구 (주 2회 이상)", m["q2_1"])}</div>
-          {score_row(i, "s12")}</div>
-        <div class="subitem"><div class="subitem-label">1-3. 손에 익은 도구·정착 깊이</div>
-          <div class="evidence-list">{evid("q2.2 · 가장 손에 익은 도구·계기", m["q2_2"])}</div>
-          {score_row(i, "s13")}</div>
-        <div class="subitem"><div class="subitem-label">1-4. 신규 도구 시도·학습 의지</div>
-          <div class="evidence-list">{evid("q2.3 · 최근 3개월 신규 도입 도구", m["q2_3"])}</div>
-          {score_row(i, "s14")}</div>
-      </div>'''
+        # a1 — v7 순서: 1-1(s11) / 1-2(s12) / 1-3(s14, q2.3) / 1-4(s13, q2.2)
+        a1 = (
+            f'<div class="axis-block {ax1[0]}">'
+            f'<div class="axis-header"><h4>01 AI 툴 활용 <span class="axis-weight">(가중치 25%)</span></h4>'
+            f'<span class="axis-avg empty" id="axis-avg-{i}-a1">축 평균 <strong>—</strong></span></div>'
+            f'<div class="signal-line">{signal_line(ax1, ax1s)}</div>'
+            f'<div class="synth-box"><strong>정성 코멘트</strong> — 도구 다양성·정착 깊이·새 도구 시도의 균형을 보세요. 한 도구만 강하게 쓰는 경우 1-2가, 정착이 약한 경우 1-1·1-3이 낮을 수 있습니다.</div>'
+            f'<div class="subitem"><div class="subitem-label">1-1. 업무 내 AI 비중 (정기 사용 강도)</div>'
+            f'<div class="evidence-list">{evid("q1.3 · AI가 함께 작동하는 업무 비중", m["q1_3"])}</div>{score_row(i, "s11")}</div>'
+            f'<div class="subitem"><div class="subitem-label">1-2. 정기 사용 도구 다양성</div>'
+            f'<div class="evidence-list">{evid("q2.1 · 정기 사용 도구 (주 2회 이상)", m["q2_1"])}</div>{score_row(i, "s12")}</div>'
+            f'<div class="subitem"><div class="subitem-label">1-3. 새 AI 툴 자발 학습·적용</div>'
+            f'<div class="evidence-list">{evid("q2.3 · 최근 3개월 신규 도입 도구", m["q2_3"])}</div>{score_row(i, "s14")}</div>'
+            f'<div class="subitem"><div class="subitem-label">1-4. AI 사용 목적·방향 자기 설정</div>'
+            f'<div class="evidence-list">{evid("q2.2 · 가장 손에 익은 도구·계기", m["q2_2"])}</div>{score_row(i, "s13")}</div>'
+            f'</div>'
+        )
 
-        a2 = f'''
-      <div class="axis-block {ax2[0]}">
-        <div class="axis-header">
-          <h4>02 결과물 완성도 <span class="axis-weight">(가중치 30%)</span></h4>
-          <span class="axis-avg empty" id="axis-avg-{i}-a2">축 평균 <strong>—</strong></span>
-        </div>
-        <div class="signal-line">{signal_line(ax2, ax2s)}</div>
-        <div class="synth-box"><strong>정성 코멘트</strong> — 사례의 구체성·검증 흐름의 체계성이 결과물 완성도의 핵심입니다. 자기 템플릿(2-4) 보유는 강한 신호입니다.</div>
-        <div class="subitem"><div class="subitem-label">2-1. 대표 활용 사례 구체성·다양성</div>
-          <div class="evidence-list">{evid("q3.1 · 잘 풀린 사례 1순위", m["q3_1"])}{evid("q3.2 · 1순위 산출물 링크", m["q3_2"])}{evid("q3.3 · 2순위 사례", m["q3_3"])}{evid("q3.4 · 2순위 산출물 링크", m["q3_4"])}{evid("q3.5 · 3순위 사례", m["q3_5"])}{evid("q3.6 · 3순위 산출물 링크", m["q3_6"])}</div>
-          {score_row(i, "s21")}</div>
-        <div class="subitem"><div class="subitem-label">2-2. AI 결과물 검토·검증 흐름</div>
-          <div class="evidence-list">{evid("q4.1 · AI 결과물 검토·검증 흐름", m["q4_1"])}</div>
-          {score_row(i, "s22")}</div>
-        <div class="subitem"><div class="subitem-label">2-3. 오류·편향 수정 사례</div>
-          <div class="evidence-list">{evid("q4.2 · 오류·편향 수정 최근 사례", m["q4_2"])}</div>
-          {score_row(i, "s23")}</div>
-        <div class="subitem"><div class="subitem-label">2-4. 자기 체크리스트·프롬프트 템플릿</div>
-          <div class="evidence-list">{evid("q4.3 · 자기 체크리스트·템플릿", m["q4_3"])}</div>
-          {score_row(i, "s24")}</div>
-      </div>'''
+        # a2 — v7: ⭐ 헤더카드 + s21(q4.1), s22(q4.2)+hint, s23(q4.3)+hint
+        header_card_evidence = (
+            evid("q3.1 · 잘 풀린 사례 1순위", m["q3_1"])
+            + evid("q3.2 · 1순위 산출물 링크", m["q3_2"])
+            + evid("q3.3 · 2순위 사례", m["q3_3"])
+            + evid("q3.4 · 2순위 산출물 링크", m["q3_4"])
+            + evid("q3.5 · 3순위 사례", m["q3_5"])
+            + evid("q3.6 · 3순위 산출물 링크", m["q3_6"])
+        )
+        a2 = (
+            f'<div class="axis-block {ax2[0]}">'
+            f'<div class="axis-header"><h4>02 결과물 완성도 <span class="axis-weight">(가중치 30%)</span></h4>'
+            f'<span class="axis-avg empty" id="axis-avg-{i}-a2">축 평균 <strong>—</strong></span></div>'
+            f'<div class="signal-line">{signal_line(ax2, ax2s)}</div>'
+            f'<div class="synth-box"><strong>정성 코멘트</strong> — 사례의 구체성·검증 흐름의 체계성이 결과물 완성도의 핵심입니다. 자기 템플릿(2-4) 보유는 강한 신호입니다.</div>'
+            f'<div class="subitem axis-header-card" style="background:#fff8e7; border-left:4px solid #f5a623; padding:16px;">'
+            f'<div class="subitem-label" style="font-size:1.05em; color:#8a5a00;">⭐ 2축 평가 — 대표 활용 사례 (구체성·다양성)</div>'
+            f'<div style="margin:8px 0 12px 0; color:#555; font-size:0.92em; line-height:1.6;">아래 응답을 보고 <strong>2-1, 2-2, 2-3 점수를 매기세요</strong>. 이 카드 자체는 점수 입력 칸이 없습니다 — 사례의 구체성·다양성을 종합 판단의 근거로 사용합니다.</div>'
+            f'<div class="evidence-list">{header_card_evidence}</div></div>'
+            f'<div class="subitem"><div class="subitem-label">2-1. AI 결과물 오류·편향을 스스로 발견·수정·검증한다</div>'
+            f'<div class="evidence-list">{evid("q4.1 · AI 결과물 검토·검증 흐름", m["q4_1"])}</div>{score_row(i, "s21")}</div>'
+            f'<div class="subitem"><div class="subitem-label">2-2. AI 활용 산출물의 품질이 기존 대비 향상되었다</div>'
+            f'{hint_box(HINT_S22)}'
+            f'<div class="evidence-list">{evid("q4.2 · 오류·편향 수정 최근 사례", m["q4_2"])}</div>{score_row(i, "s22")}</div>'
+            f'<div class="subitem"><div class="subitem-label">2-3. AI 결과물을 업무 맥락에 맞게 생성할 수 있다</div>'
+            f'{hint_box(HINT_S23)}'
+            f'<div class="evidence-list">{evid("q4.3 · 자기 체크리스트·템플릿", m["q4_3"])}</div>{score_row(i, "s23")}</div>'
+            f'</div>'
+        )
 
-        a3 = f'''
-      <div class="axis-block {ax3[0]}">
-        <div class="axis-header">
-          <h4>03 속도·임팩트 <span class="axis-weight">(가중치 30%)</span></h4>
-          <span class="axis-avg empty" id="axis-avg-{i}-a3">축 평균 <strong>—</strong></span>
-        </div>
-        <div class="signal-line">{signal_line(ax3)}</div>
-        <div class="synth-box"><strong>정성 코멘트</strong> — 시간 체감과 자동화 수는 자기 보고이므로 사례(3-3·3-4)와 함께 봐 주세요. "AI 없으면 못 했을" 사례가 가장 강한 신호입니다.</div>
-        <div class="subitem"><div class="subitem-label">3-1. 자동화·시간 단축 반복 업무 수</div>
-          <div class="evidence-list">{evid("q5.1 · 자동화·시간 단축 반복 업무 수", m["q5_1"])}</div>
-          {score_row(i, "s31")}</div>
-        <div class="subitem"><div class="subitem-label">3-2. 한 주 절약 시간 (체감)</div>
-          <div class="evidence-list">{evid("q5.2 · 한 주 절약 시간 (체감)", m["q5_2"])}</div>
-          {score_row(i, "s32")}</div>
-        <div class="subitem"><div class="subitem-label">3-3. AI 덕분에 새로 시도한 업무</div>
-          <div class="evidence-list">{evid("q5.3 · 새로 시도한 업무", m["q5_3"])}</div>
-          {score_row(i, "s33")}</div>
-        <div class="subitem"><div class="subitem-label">3-4. "AI 없으면 못 했을" 사례</div>
-          <div class="evidence-list">{evid("q5.4 · &quot;AI 없으면 못 했을&quot; 사례", m["q5_4"])}{evid("q5.5 · 위 사례의 산출물 링크", m["q5_5"])}</div>
-          {score_row(i, "s34")}</div>
-      </div>'''
+        # a3 — v7: s31에 hint 추가
+        a3 = (
+            f'<div class="axis-block {ax3[0]}">'
+            f'<div class="axis-header"><h4>03 속도·임팩트 <span class="axis-weight">(가중치 30%)</span></h4>'
+            f'<span class="axis-avg empty" id="axis-avg-{i}-a3">축 평균 <strong>—</strong></span></div>'
+            f'<div class="signal-line">{signal_line(ax3)}</div>'
+            f'<div class="synth-box"><strong>정성 코멘트</strong> — 시간 체감과 자동화 수는 자기 보고이므로 사례(3-3·3-4)와 함께 봐 주세요. &quot;AI 없으면 못 했을&quot; 사례가 가장 강한 신호입니다.</div>'
+            f'<div class="subitem"><div class="subitem-label">3-1. 자동화·시간 단축 반복 업무 수</div>'
+            f'{hint_box(HINT_S31)}'
+            f'<div class="evidence-list">{evid("q5.1 · 자동화·시간 단축 반복 업무 수", m["q5_1"])}</div>{score_row(i, "s31")}</div>'
+            f'<div class="subitem"><div class="subitem-label">3-2. 한 주 절약 시간 (체감)</div>'
+            f'<div class="evidence-list">{evid("q5.2 · 한 주 절약 시간 (체감)", m["q5_2"])}</div>{score_row(i, "s32")}</div>'
+            f'<div class="subitem"><div class="subitem-label">3-3. AI 덕분에 새로 시도한 업무</div>'
+            f'<div class="evidence-list">{evid("q5.3 · 새로 시도한 업무", m["q5_3"])}</div>{score_row(i, "s33")}</div>'
+            f'<div class="subitem"><div class="subitem-label">3-4. &quot;AI 없으면 못 했을&quot; 사례</div>'
+            f'<div class="evidence-list">{evid("q5.4 · &quot;AI 없으면 못 했을&quot; 사례", m["q5_4"])}{evid("q5.5 · 위 사례의 산출물 링크", m["q5_5"])}</div>{score_row(i, "s34")}</div>'
+            f'</div>'
+        )
 
-        a4 = f'''
-      <div class="axis-block {ax4[0]}">
-        <div class="axis-header">
-          <h4>04 지식 공유 <span class="axis-weight">(가중치 15%)</span></h4>
-          <span class="axis-avg empty" id="axis-avg-{i}-a4">축 평균 <strong>—</strong></span>
-        </div>
-        <div class="signal-line">{signal_line(ax4)}</div>
-        <div class="synth-box"><strong>정성 코멘트</strong> — 단순 공유(슬랙)와 임팩트 있는 공유(동료 변화)는 점수 차이가 큽니다. 4-2 동료 변화 사례가 빈약하면 4-3 자료 흔적도 보세요.</div>
-        <div class="subitem"><div class="subitem-label">4-1. 공유 채널 다양성</div>
-          <div class="evidence-list">{evid("q6.1 · 공유 방식 (복수 응답)", m["q6_1"])}</div>
-          {score_row(i, "s41")}</div>
-        <div class="subitem"><div class="subitem-label">4-2. 동료 업무 방식 변화 사례</div>
-          <div class="evidence-list">{evid("q6.2 · 동료의 업무 방식이 바뀐 사례", m["q6_2"])}</div>
-          {score_row(i, "s42")}</div>
-        <div class="subitem"><div class="subitem-label">4-3. 공유 자료 흔적·링크</div>
-          <div class="evidence-list">{evid("q6.3 · 공유 자료 대표 링크", m["q6_3"])}</div>
-          {score_row(i, "s43")}</div>
-      </div>'''
+        # a4 — v7: s44 신규 (q-evidence 없음, 리더 종합 판단)
+        a4 = (
+            f'<div class="axis-block {ax4[0]}">'
+            f'<div class="axis-header"><h4>04 지식 공유 <span class="axis-weight">(가중치 15%)</span></h4>'
+            f'<span class="axis-avg empty" id="axis-avg-{i}-a4">축 평균 <strong>—</strong></span></div>'
+            f'<div class="signal-line">{signal_line(ax4)}</div>'
+            f'<div class="synth-box"><strong>정성 코멘트</strong> — 단순 공유(슬랙)와 임팩트 있는 공유(동료 변화)는 점수 차이가 큽니다. 4-2 동료 변화 사례가 빈약하면 4-3 자료 흔적도 보세요.</div>'
+            f'<div class="subitem"><div class="subitem-label">4-1. 공유 채널 다양성</div>'
+            f'<div class="evidence-list">{evid("q6.1 · 공유 방식 (복수 응답)", m["q6_1"])}</div>{score_row(i, "s41")}</div>'
+            f'<div class="subitem"><div class="subitem-label">4-2. 동료 업무 방식 변화 사례</div>'
+            f'<div class="evidence-list">{evid("q6.2 · 동료의 업무 방식이 바뀐 사례", m["q6_2"])}</div>{score_row(i, "s42")}</div>'
+            f'<div class="subitem"><div class="subitem-label">4-3. 공유 자료 흔적·링크</div>'
+            f'<div class="evidence-list">{evid("q6.3 · 공유 자료 대표 링크", m["q6_3"])}</div>{score_row(i, "s43")}</div>'
+            f'<div class="subitem"><div class="subitem-label">4-4. AI 활용 관련 팀 내 문화 형성에 기여하고 있다</div>'
+            f'{hint_box(HINT_S44)}'
+            f'<div class="evidence-list"><div class="evidence-item" style="color:#888; font-style:italic;">4-1, 4-2, 4-3 항목과 멤버 공유 활동을 종합 판단</div></div>{score_row(i, "s44")}</div>'
+            f'</div>'
+        )
 
-        aux = f'''
-      <div class="axis-block">
-        <h4>📌 보조 정보 — Red-line · 회고 (점수 영향 없음)</h4>
-        {evid("q8.3 · 지금 가장 답답한 지점", m["q8_3"] or "—")}
-        {evid("q8.4 · 가장 큰 어려움", m["q8_4"] or "—")}
-        {evid("q8.5 · 필요한 지원", m["q8_5"] or "—")}
-        {evid("q8.6 · 가장 자신 있는 AI 활용 영역", m["q8_6"] or "—")}
-        {evid("q8.7 · 다음 3개월 시도하고 싶은 것", m["q8_7"] or "—")}
-      </div>'''
+        aux = (
+            f'<div class="axis-block">'
+            f'<h4>📌 보조 정보 — Red-line · 회고 (점수 영향 없음)</h4>'
+            f'{evid("q8.3 · 지금 가장 답답한 지점", m["q8_3"] or "—")}'
+            f'{evid("q8.4 · 가장 큰 어려움", m["q8_4"] or "—")}'
+            f'{evid("q8.5 · 필요한 지원", m["q8_5"] or "—")}'
+            f'{evid("q8.6 · 가장 자신 있는 AI 활용 영역", m["q8_6"] or "—")}'
+            f'{evid("q8.7 · 다음 3개월 시도하고 싶은 것", m["q8_7"] or "—")}'
+            f'</div>'
+        )
 
         active = 'active' if i == 0 else ''
         role_line = f'{esc(m["role"])} · {esc(m["team"])} · 리더: {esc(m["leader"])}'
 
-        details.append(f'''
-    <div class="member-detail {active}" id="mem-{i}">
-      <div class="member-header">
-        <div class="name-block"><h3>{esc(m["name"])}</h3><div class="role">{role_line}</div></div>
-        <div class="signal-strip">
-          <span class="sig-chip">🟢 {cg}</span><span class="sig-chip">🟡 {cy}</span><span class="sig-chip">🔴 {cr}</span>
-        </div>
-      </div>
-      <div class="score-summary">
-        <div class="total">총점 <strong id="total-{i}">—</strong> / 100</div>
-        <div class="actions">
-          <span class="saved-badge" id="saved-badge-{i}">✓ 저장됨</span>
-          <div class="grade empty" id="grade-{i}">등급 미입력</div>
-          <button class="btn-save" onclick="saveMember({i})">💾 저장</button>
-          <button class="btn-delete" onclick="deleteMember({i})">🗑 삭제</button>
-        </div>
-      </div>
-{a1}{a2}{a3}{a4}{aux}
-      <div class="memo-block">
-        <div class="score-label">📝 리더 메모 (1:1 코칭 포커스·결정 근거 등)</div>
-        <textarea class="memo-input" id="memo-{i}" placeholder="자유롭게 입력하세요. 자동 저장됩니다." oninput="setMemo({i}, this.value)"></textarea>
-      </div>
-      <div class="rubric-aside">
-        <strong>리더 체크 포인트</strong> — 자기 보고는 과대·과소 편향이 모두 가능합니다.
-        평소 1:1·산출물 리뷰·동료 피드백을 함께 두고 세부 항목을 매겨 주세요. AI는 점수를 제안하지 않습니다.
-      </div>
-    </div>''')
+        details.append(
+            f'<div class="member-detail {active}" id="mem-{i}">'
+            f'<div class="member-header">'
+            f'<div class="name-block"><h3>{esc(m["name"])}</h3><div class="role">{role_line}</div></div>'
+            f'<div class="signal-strip">'
+            f'<span class="sig-chip">🟢 {cg}</span><span class="sig-chip">🟡 {cy}</span><span class="sig-chip">🔴 {cr}</span>'
+            f'</div></div>'
+            f'<div class="score-summary">'
+            f'<div class="total">총점 <strong id="total-{i}">—</strong> / 100</div>'
+            f'<div class="actions">'
+            f'<span class="saved-badge" id="saved-badge-{i}">✓ 저장됨</span>'
+            f'<div class="grade empty" id="grade-{i}">등급 미입력</div>'
+            f'<button class="btn-save" onclick="saveMember({i})">💾 저장</button>'
+            f'<button class="btn-delete" onclick="deleteMember({i})">🗑 삭제</button>'
+            f'</div></div>'
+            f'{a1}{a2}{a3}{a4}{aux}'
+            f'<div class="memo-block">'
+            f'<div class="score-label">📝 리더 메모 (1:1 코칭 포커스·결정 근거 등)</div>'
+            f'<textarea class="memo-input" id="memo-{i}" placeholder="자유롭게 입력하세요. 자동 저장됩니다." oninput="setMemo({i}, this.value)"></textarea>'
+            f'</div>'
+            f'<div class="rubric-aside"><strong>리더 체크 포인트</strong> — 자기 보고는 과대·과소 편향이 모두 가능합니다. 평소 1:1·산출물 리뷰·동료 피드백을 함께 두고 세부 항목을 매겨 주세요. AI는 점수를 제안하지 않습니다.</div>'
+            f'</div>'
+        )
 
-    # JSON data
     members_json = json.dumps(
         [{'name': m['name'], 'role': m['role'], 'team': m['team'], 'leader': m['leader']} for m in members],
         ensure_ascii=False,
     )
     aggs_json = json.dumps(aggs, ensure_ascii=False)
-    storage_key = f'{dept.lower()}_aiq_v6'
+    storage_key = f'{dept}_aiq_v7'
+    filename_base = f'{dept}_AIQ_세부평가결과'
 
     html_out = HTML_TEMPLATE.format(
         DEPT=dept,
@@ -534,6 +516,7 @@ def build(input_path, dept, output_path):
         aggs_json=aggs_json,
         members_json=members_json,
         storage_key=storage_key,
+        filename_base=filename_base,
     )
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -542,16 +525,13 @@ def build(input_path, dept, output_path):
     print(f'✅ 저장: {output_path} ({os.path.getsize(output_path):,} bytes)')
 
 
-# ---------- 8. HTML 템플릿 (잭의 코어비즈 v6 양식 그대로) ----------
-# 본문은 외부 변수만 {DEPT}, {n_total}, … 형태로 받고 나머지 CSS/JS는 그대로 보존.
-# 모든 { } 문자는 이스케이프되어야 하므로 str.format 대신 .replace 기반으로 처리.
-
+# ---------- HTML 템플릿 ----------
 _HTML_RAW = r"""<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>__DEPT__ · AI-Q 리더 평가 가이드 (세부 항목별 점수)</title>
+<title>__DEPT__ · AI-Q 리더 평가 가이드 (v7) (세부 항목별 점수)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; }
@@ -693,10 +673,10 @@ table.summary-table tr:hover { background: #fffbe6; cursor: pointer; }
     <h3 style="margin-top:0;">AI-Q 4축 · 가중치 · 세부 항목</h3>
     <table>
       <tr><th>축</th><th>가중치</th><th>세부 항목</th></tr>
-      <tr><td>01 AI 툴 활용</td><td>25%</td><td>1-1 비중 / 1-2 도구 다양성 / 1-3 정착 깊이 / 1-4 신규 도구 시도</td></tr>
-      <tr><td>02 결과물 완성도</td><td>30%</td><td>2-1 사례 구체성 / 2-2 검증 흐름 / 2-3 오류 수정 사례 / 2-4 체크리스트·템플릿</td></tr>
+      <tr><td>01 AI 툴 활용</td><td>25%</td><td>1-1 비중 / 1-2 도구 다양성 / 1-3 새 도구 학습 / 1-4 목적·방향 설정</td></tr>
+      <tr><td>02 결과물 완성도</td><td>30%</td><td>⭐사례 헤더카드 / 2-1 오류·편향 검증 / 2-2 품질 향상 / 2-3 맥락 반영</td></tr>
       <tr><td>03 속도·임팩트</td><td>30%</td><td>3-1 자동화 수 / 3-2 절약 시간 / 3-3 신규 시도 / 3-4 AI 없으면 못 했을 사례</td></tr>
-      <tr><td>04 지식 공유</td><td>15%</td><td>4-1 채널 다양성 / 4-2 동료 변화 사례 / 4-3 자료 흔적</td></tr>
+      <tr><td>04 지식 공유</td><td>15%</td><td>4-1 채널 다양성 / 4-2 동료 변화 / 4-3 자료 흔적 / 4-4 문화 형성 기여</td></tr>
     </table>
     <p style="font-size:12px; color:#666;">
       축 점수 = 세부 항목 평균<br>
@@ -753,9 +733,8 @@ __SUM_ROWS__
 __DETAILS__
   </section>
 
-  <div style="text-align:center; color:#999; font-size:12px; margin-top:32px;">
-    <p>__DEPT__ · AI 활용 현황 공유 설문 (__N_TOTAL__명 응답) · 세부 항목별 평가</p>
-    <p>NextGen AI · v6 (sub-item 점수 + 멤버별 저장·삭제)</p>
+  <div class="rubric-aside">
+    <p>작성: NGA AI-Q v7 · __DEPT__ 부서 평가지 (sub-item 점수 + 멤버별 저장·삭제)</p>
   </div>
 </div>
 
@@ -763,11 +742,12 @@ __DETAILS__
 <script>
 const aggs = __AGGS_JSON__;
 const members = __MEMBERS_JSON__;
-const SUB_KEYS = ["s11","s12","s13","s14","s21","s22","s23","s24","s31","s32","s33","s34","s41","s42","s43"];
-const AXIS_SUB = {"a1":["s11","s12","s13","s14"],"a2":["s21","s22","s23","s24"],"a3":["s31","s32","s33","s34"],"a4":["s41","s42","s43"]};
-const SUB_LABELS = {"s11":"1-1. 업무 내 AI 비중 (정기 사용 강도)","s12":"1-2. 정기 사용 도구 다양성","s13":"1-3. 손에 익은 도구·정착 깊이","s14":"1-4. 신규 도구 시도·학습 의지","s21":"2-1. 대표 활용 사례 구체성·다양성","s22":"2-2. AI 결과물 검토·검증 흐름","s23":"2-3. 오류·편향 수정 사례","s24":"2-4. 자기 체크리스트·프롬프트 템플릿","s31":"3-1. 자동화·시간 단축 반복 업무 수","s32":"3-2. 한 주 절약 시간 (체감)","s33":"3-3. AI 덕분에 새로 시도한 업무","s34":"3-4. \"AI 없으면 못 했을\" 사례","s41":"4-1. 공유 채널 다양성","s42":"4-2. 동료 업무 방식 변화 사례","s43":"4-3. 공유 자료 흔적·링크"};
+const SUB_KEYS = ["s11","s12","s13","s14","s21","s22","s23","s31","s32","s33","s34","s41","s42","s43","s44"];
+const AXIS_SUB = {"a1":["s11","s12","s13","s14"],"a2":["s21","s22","s23"],"a3":["s31","s32","s33","s34"],"a4":["s41","s42","s43","s44"]};
+const SUB_LABELS = {"s11":"1-1. 업무 내 AI 비중 (정기 사용 강도)","s12":"1-2. 정기 사용 도구 다양성","s13":"1-3. 새 AI 툴 자발 학습·적용","s14":"1-4. AI 사용 목적·방향 자기 설정","s21":"2-1. AI 결과물 오류·편향 발견·수정·검증","s22":"2-2. 산출물 품질 향상","s23":"2-3. 업무 맥락 반영 생성","s31":"3-1. 자동화·시간 단축 반복 업무 수","s32":"3-2. 한 주 절약 시간 (체감)","s33":"3-3. AI 덕분에 새로 시도한 업무","s34":"3-4. \"AI 없으면 못 했을\" 사례","s41":"4-1. 공유 채널 다양성","s42":"4-2. 동료 업무 방식 변화 사례","s43":"4-3. 공유 자료 흔적·링크","s44":"4-4. 팀 내 AI 문화 형성 기여"};
 const WEIGHTS = { a1: 0.25, a2: 0.30, a3: 0.30, a4: 0.15 };
 const STORAGE_KEY = '__STORAGE_KEY__';
+const FILENAME = '__FILENAME_BASE__';
 let state = loadState();
 
 function loadState() {
@@ -893,7 +873,7 @@ function exportCSV() {
     const s = state.scores[i] || {};
     const { total, grade } = calcTotal(i);
     const a1 = axisAvg(i,'a1'), a2 = axisAvg(i,'a2'), a3 = axisAvg(i,'a3'), a4 = axisAvg(i,'a4');
-    const row = [m.name, m.role, m.team, m.leader];
+    const row = [m.name, m.role, m.team, m.leader || ''];
     SUB_KEYS.forEach(k => row.push(s[k] !== null && s[k] !== undefined ? s[k] : ''));
     row.push(a1 !== null ? a1.toFixed(2) : '', a2 !== null ? a2.toFixed(2) : '', a3 !== null ? a3.toFixed(2) : '', a4 !== null ? a4.toFixed(2) : '');
     row.push(total || '', grade || '', (state.memos[i] || '').replace(/\n/g, ' '));
@@ -901,7 +881,7 @@ function exportCSV() {
   });
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = '__DEPT___AIQ_세부평가결과.csv'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = FILENAME + '.csv'; a.click();
   URL.revokeObjectURL(url);
 }
 function exportExcel() {
@@ -914,7 +894,7 @@ function exportExcel() {
     const s = state.scores[i] || {};
     const { total, grade } = calcTotal(i);
     const a1 = axisAvg(i,'a1'), a2 = axisAvg(i,'a2'), a3 = axisAvg(i,'a3'), a4 = axisAvg(i,'a4');
-    const row = [m.name, m.role, m.team, m.leader];
+    const row = [m.name, m.role, m.team, m.leader || ''];
     SUB_KEYS.forEach(k => row.push(s[k] !== null && s[k] !== undefined ? s[k] : ''));
     row.push(a1 !== null ? +a1.toFixed(2) : '', a2 !== null ? +a2.toFixed(2) : '', a3 !== null ? +a3.toFixed(2) : '', a4 !== null ? +a4.toFixed(2) : '');
     row.push(total || '', grade || '', state.memos[i] || '');
@@ -927,8 +907,8 @@ function exportExcel() {
   cols.push({wch:8},{wch:6},{wch:40});
   ws['!cols'] = cols;
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '__DEPT__ AI-Q 세부평가');
-  XLSX.writeFile(wb, '__DEPT___AIQ_세부평가결과.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'AI-Q 세부평가');
+  XLSX.writeFile(wb, FILENAME + '.xlsx');
 }
 function resetAll() {
   if (!confirm('모든 점수·메모·저장 기록을 초기화하시겠습니까? 되돌릴 수 없습니다.')) return;
@@ -941,9 +921,9 @@ function resetAll() {
   renderProgress();
 }
 function renderBar(elemId, data, maxItems) {
-  const el = document.getElementById(elemId);
+  const el = document.getElementById(elemId); if (!el) return;
   const items = Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0, maxItems || 8);
-  if (items.length === 0) { el.innerHTML = '<li style="color:#999;font-size:12px;">응답 없음</li>'; return; }
+  if (items.length === 0) { el.innerHTML = '<li style="color:#aaa">응답 없음</li>'; return; }
   const max = Math.max(...items.map(x=>x[1]));
   el.innerHTML = items.map(([name, count]) => {
     const w = (count/max*100).toFixed(0);
@@ -957,12 +937,13 @@ renderBar('diff-bar', aggs.difficulty_top, 8);
 const chartOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } };
 const colors = ['#ffd400', '#1a7a3c', '#b58900', '#c0392b', '#888', '#ccc'];
 function donut(canvasId, data, order) {
+  const el = document.getElementById(canvasId); if (!el) return;
   const labels = order.filter(k => data[k] !== undefined);
+  if (labels.length === 0) return;
   const values = labels.map(k => data[k]);
-  if (labels.length === 0) { document.getElementById(canvasId).parentElement.innerHTML = '<div style="color:#999;font-size:12px;padding:20px;">응답 없음</div>'; return; }
-  new Chart(document.getElementById(canvasId), { type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: colors }] }, options: chartOpts });
+  new Chart(el, { type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: colors }] }, options: chartOpts });
 }
-donut('freqChart', aggs.freq_dist, ['거의 항상 (75% 이상)', '자주 (50–75%)', '꾸준히 (25–50%)', '가끔 (10–25%)', '거의 사용하지 않음 (10% 미만)']);
+donut('freqChart', aggs.freq_dist, ['거의 항상 (75% 이상)', '자주 (50–75%)', '꾸준히 (25–50%)', '가끔 (10–25%)', '거의 사용하지 않음 (10% 미만)', '거의 없음 (10% 미만)']);
 donut('timeChart', aggs.time_saved_dist, ['10시간 이상', '6–10시간', '3–6시간', '1–3시간', '1시간 미만', '거의 없음']);
 donut('autoChart', aggs.auto_count_dist, ['6개 이상', '3–5개', '1–2개', '0개']);
 members.forEach((_, i) => {
@@ -978,7 +959,6 @@ renderProgress();
 
 
 class _Template:
-    """f-string·.format 모두 피하기 위한 단순 토큰 치환 템플릿."""
     def __init__(self, raw):
         self.raw = raw
 
@@ -997,6 +977,7 @@ class _Template:
             '__AGGS_JSON__':    kw['aggs_json'],
             '__MEMBERS_JSON__': kw['members_json'],
             '__STORAGE_KEY__':  kw['storage_key'],
+            '__FILENAME_BASE__': kw['filename_base'],
         }
         for k, v in replacements.items():
             out = out.replace(k, v)
@@ -1006,12 +987,11 @@ class _Template:
 HTML_TEMPLATE = _Template(_HTML_RAW)
 
 
-# ---------- 9. CLI ----------
 def main():
-    ap = argparse.ArgumentParser(description='AI-Q 리더 평가 가이드 HTML 빌더')
-    ap.add_argument('--input', required=True, help='설문 응답 파일 (xlsx / csv / tsv)')
-    ap.add_argument('--department', required=True, help='부서명 (예: 마케팅)')
-    ap.add_argument('--output', default=None, help='출력 HTML 경로 (생략 시 입력 폴더에 자동 저장)')
+    ap = argparse.ArgumentParser(description='AI-Q 리더 평가 가이드 v7 HTML 빌더')
+    ap.add_argument('--input', required=True)
+    ap.add_argument('--department', required=True)
+    ap.add_argument('--output', default=None)
     args = ap.parse_args()
 
     out = args.output or os.path.join(
